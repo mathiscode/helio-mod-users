@@ -38,6 +38,8 @@ import UsersMod from 'helio-mod-users'
 Mods = [{ path: '/user', module: UsersMod }]
 ```
 
+[More information on Helio mods](https://github.com/mathiscode/helio-api-boilerplate#mods)
+
 ## Methods
 
 ### `GET /`
