@@ -1,7 +1,7 @@
 {
   "name": "helio-mod-users",
-  "version": "1.0.0",
-  "description": "Simple Jokes mod for Helio API Boilerplate",
+  "version": "1.0.1",
+  "description": "User management mod for Helio API Boilerplate",
   "main": "dist/index.js",
   "scripts": {
     "dev": "cross-env NODE_ENVIRONMENT=development nodemon --ignore dist --exec npm run transpile",
