@@ -161,26 +161,10 @@ function () {
               mod: _this3.name
             });
             user.save(function (err, user) {
-              if (err) return res.status(500).json({
-                error: 'Error creating your account'
-              });
+              if (err) return next(err);
               res.json({
                 message: 'User successfully registered'
-              }); // jsonwebtoken.sign({
-              //   id: user._id,
-              //   email: user.email,
-              //   username: user.username,
-              //   roles: user.roles
-              // }, process.env.JWT_SECRET,
-              // {
-              //   expiresIn: process.env.JWT_TIMEOUT || '1h'
-              // },
-              // (err, token) => {
-              //   if (err) return res.status(400).json({ error: 'An error occurred authenticating your account' })
-              //   const whitelist = new this.models.TokenWhitelist({ token })
-              //   whitelist.save()
-              //   res.set('X-AuthToken', token).json({ token })
-              // })
+              });
             });
           });
         })["catch"](function (err) {
