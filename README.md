@@ -10,16 +10,18 @@ This mod may be installed into projects utilizing [Helio API Boilerplate](https:
   - [Install](#install)
   - [Methods](#methods)
     - [`GET /`](#get)
+    - [`DELETE /`](#delete)
     - [`POST /register` [public]](#post-register-public)
     - [`POST /login` [public]](#post-login-public)
+    - [`GET /logout`](#get-logout)
     - [`GET /settings`](#get-settings)
     - [`GET /settings/:key`](#get-settingskey)
-    - [`POST /settings/:key`](#post-settingskey)
+    - [`PUT /settings/:key`](#put-settingskey)
     - [`GET /client-settings`](#get-client-settings)
-    - [`POST /client-settings`](#post-client-settings)
+    - [`PUT /client-settings`](#put-client-settings)
     - [`GET /profile`](#get-profile)
     - [`GET /profile/:key`](#get-profilekey)
-    - [`POST /profile/:key`](#post-profilekey)
+    - [`PUT /profile/:key`](#put-profilekey)
     - [`GET /username`](#get-username)
     - [`GET /username/availability` [public]](#get-usernameavailability-public)
     - [`PATCH /username`](#patch-username)
@@ -46,6 +48,10 @@ Mods = [{ path: '/user', module: UsersMod }]
 
 - Get user object of current user
 
+### `DELETE /`
+
+- Delete current user
+
 ### `POST /register` [public]
 
 > { email: 'jdoe@example.com', password: 'supersecretpassword' }
@@ -58,6 +64,10 @@ Mods = [{ path: '/user', module: UsersMod }]
 
 - Login as user; returns auth token
 
+### `GET /logout`
+
+- Invalidate token for current user
+
 ### `GET /settings`
 
 - Get settings object of current user
@@ -66,7 +76,7 @@ Mods = [{ path: '/user', module: UsersMod }]
 
 - Get setting value with key name :key
 
-### `POST /settings/:key`
+### `PUT /settings/:key`
 
 > { value: 'NewValue' }
 
@@ -76,7 +86,7 @@ Mods = [{ path: '/user', module: UsersMod }]
 
 - Get client settings object; may be used by a frontend to store preferences
 
-### `POST /client-settings`
+### `PUT /client-settings`
 
 > { any: 'thing', can: 'be', stored: 'here' }
 
@@ -90,7 +100,7 @@ Mods = [{ path: '/user', module: UsersMod }]
 
 - Get value for profile item with key name :key
 
-### `POST /profile/:key`
+### `PUT /profile/:key`
 
 > { value: 'NewValue' }
 
