@@ -1,6 +1,6 @@
 {
   "name": "helio-mod-users",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "User management mod for Helio API Boilerplate",
   "main": "dist/index.js",
   "scripts": {
@@ -44,6 +44,7 @@
     "bcryptjs": "^2.4.3",
     "express": "^4.17.0",
     "jsonwebtoken": "^8.5.1",
+    "mongoose": "^5.5.11",
     "uuid": "^3.3.2"
   }
 }
