@@ -13,6 +13,8 @@ var _bcryptjs = _interopRequireDefault(require("bcryptjs"));
 
 var _uuid = require("uuid");
 
+var _UserSchema = _interopRequireDefault(require("./UserSchema"));
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -29,22 +31,27 @@ function () {
 
     this.name = options.name || 'Helio Users';
     this.publicPaths = [new RegExp("^".concat(options.path, "/(login|register)")), "".concat(options.path, "/username/availability")];
-    this.needModels = ['User'];
+    this.needModels = ['User', 'TokenWhitelist'];
+    this.subSchemas = {
+      User: _UserSchema["default"]
+    };
     var self = this;
 
     var router = this.router = _express["default"].Router();
 
     router.get('/', this.getSelf.bind(this));
+    router["delete"]('/', this.deleteSelf.bind(this));
+    router.get('/logout', this.logout.bind(this));
     router.post('/register', this.register.bind(this));
     router.post('/login', this.login.bind(this));
     router.get('/settings', this.getAllSettings.bind(this));
     router.get('/settings/:key', this.getSetting.bind(this));
-    router.post('/settings/:key', this.setSetting.bind(this));
+    router.put('/settings/:key', this.setSetting.bind(this));
     router.get('/client-settings', this.getClientSettings.bind(this));
-    router.post('/client-settings', this.setClientSettings.bind(this));
+    router.put('/client-settings', this.setClientSettings.bind(this));
     router.get('/profile', this.getProfile.bind(this));
     router.get('/profile/:key', this.getProfileItem.bind(this));
-    router.post('/profile/:key', this.setProfileItem.bind(this));
+    router.put('/profile/:key', this.setProfileItem.bind(this));
     router.get('/username', this.getUsername.bind(this));
     router.get('/username/availability', this.checkUsernameAvailability.bind(this));
     router.patch('/username', this.setUsername.bind(this));
@@ -63,29 +70,68 @@ function () {
       var _this = this;
 
       this.models = {};
+      this.subModels = {};
       models.forEach(function (model) {
         _this.models[model.name] = model.model;
       });
+
+      for (var parentModelName in this.subSchemas) {
+        var parentModel = this.models[parentModelName];
+        var subSchema = this.subSchemas[parentModelName];
+        this.subModels[parentModelName] = parentModel.discriminator(this.name, subSchema);
+      }
+    }
+  }, {
+    key: "revokeToken",
+    value: function revokeToken(token) {
+      this.models.TokenWhitelist.findOneAndRemove({
+        token: token
+      }).exec();
     }
   }, {
     key: "getSelf",
     value: function getSelf(req, res, next) {
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
-      }).select('-__v -_id -password').then(function (user) {
+      }).select('-__v -__t -_id -password').then(function (user) {
         res.json(user);
       })["catch"](function (err) {
         return next(err);
       });
     }
   }, {
+    key: "deleteSelf",
+    value: function deleteSelf(req, res, next) {
+      var _this2 = this;
+
+      this.subModels.User.findOneAndRemove({
+        id: req.user.id
+      }).then(function (user) {
+        _this2.revokeToken(req.headers.authorization.replace('Bearer ', ''));
+
+        res.json({
+          message: 'Your account has been deleted'
+        });
+      })["catch"](function (err) {
+        return next(err);
+      });
+    }
+  }, {
+    key: "logout",
+    value: function logout(req, res, next) {
+      this.revokeToken(req.headers.authorization.replace('Bearer ', ''));
+      res.json({
+        message: 'Logged out'
+      });
+    }
+  }, {
     key: "register",
     value: function register(req, res, next) {
-      var _this2 = this;
+      var _this3 = this;
 
       var _req$body = req.body,
           email = _req$body.email,
-          password = _req$body.password; // TODO: Validate, implement bot protection, etc
+          password = _req$body.password; // TODO: Validate, implement bot protection?, etc
 
       _bcryptjs["default"].hash(password, 10, function (err, hash) {
         if (err) {
@@ -95,7 +141,7 @@ function () {
           });
         }
 
-        _this2.models.User.findOne({
+        _this3.subModels.User.findOne({
           email: email
         }).then(function (user) {
           if (user) return res.status(403).json({
@@ -103,36 +149,38 @@ function () {
           });
           var roles = ['user'];
 
-          _this2.models.User.countDocuments({}).then(function (count) {
+          _this3.subModels.User.countDocuments({}).then(function (count) {
             if (count === 0) roles.push('admin');
-            user = new _this2.models.User({
+            user = new _this3.subModels.User({
               id: (0, _uuid.v4)(),
               email: email,
               username: email,
               // Default username is email; can be changed later
               password: hash,
-              roles: roles
+              roles: roles,
+              mod: _this3.name
             });
             user.save(function (err, user) {
               if (err) return res.status(500).json({
                 error: 'Error creating your account'
               });
-
-              _jsonwebtoken["default"].sign({
-                id: user._id,
-                email: user.email,
-                username: user.username,
-                roles: user.roles
-              }, process.env.JWT_SECRET, {
-                expiresIn: process.env.JWT_TIMEOUT || '1h'
-              }, function (err, token) {
-                if (err) return res.status(400).json({
-                  error: 'An error occurred authenticating your account'
-                });
-                res.set('X-AuthToken', token).json({
-                  token: token
-                });
-              });
+              res.json({
+                message: 'User successfully registered'
+              }); // jsonwebtoken.sign({
+              //   id: user._id,
+              //   email: user.email,
+              //   username: user.username,
+              //   roles: user.roles
+              // }, process.env.JWT_SECRET,
+              // {
+              //   expiresIn: process.env.JWT_TIMEOUT || '1h'
+              // },
+              // (err, token) => {
+              //   if (err) return res.status(400).json({ error: 'An error occurred authenticating your account' })
+              //   const whitelist = new this.models.TokenWhitelist({ token })
+              //   whitelist.save()
+              //   res.set('X-AuthToken', token).json({ token })
+              // })
             });
           });
         })["catch"](function (err) {
@@ -143,11 +191,14 @@ function () {
   }, {
     key: "login",
     value: function login(req, res, next) {
+      var _this4 = this;
+
       var _req$body2 = req.body,
           email = _req$body2.email,
           password = _req$body2.password;
-      this.models.User.findOne({
-        email: email
+      this.subModels.User.findOne({
+        email: email,
+        roles: 'user'
       }).then(function (user) {
         var err = null;
         if (!user || !user.validPassword(password)) err = true;
@@ -166,6 +217,10 @@ function () {
           if (err) return res.status(400).json({
             error: 'An error occurred authenticating your account'
           });
+          var whitelist = new _this4.models.TokenWhitelist({
+            token: token
+          });
+          whitelist.save();
           res.set('X-AuthToken', token).json({
             token: token
           });
@@ -177,7 +232,7 @@ function () {
   }, {
     key: "getAllSettings",
     value: function getAllSettings(req, res, next) {
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
       }).then(function (user) {
         res.json({
@@ -190,7 +245,7 @@ function () {
   }, {
     key: "getSetting",
     value: function getSetting(req, res, next) {
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
       }).then(function (user) {
         res.json({
@@ -204,7 +259,7 @@ function () {
   }, {
     key: "setSetting",
     value: function setSetting(req, res, next) {
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
       }).then(function (user) {
         user.settings[req.params.key] = req.body.value;
@@ -221,7 +276,7 @@ function () {
   }, {
     key: "getClientSettings",
     value: function getClientSettings(req, res, next) {
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
       }).select('clientSettings').then(function (user) {
         res.json(user.clientSettings);
@@ -232,7 +287,7 @@ function () {
   }, {
     key: "setClientSettings",
     value: function setClientSettings(req, res, next) {
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
       }).select('clientSettings').then(function (user) {
         // Block unreasonable client setting size
@@ -256,7 +311,7 @@ function () {
   }, {
     key: "getProfile",
     value: function getProfile(req, res, next) {
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
       }).then(function (user) {
         res.json({
@@ -269,7 +324,7 @@ function () {
   }, {
     key: "getProfileItem",
     value: function getProfileItem(req, res, next) {
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
       }).then(function (user) {
         res.json({
@@ -283,7 +338,7 @@ function () {
   }, {
     key: "setProfileItem",
     value: function setProfileItem(req, res, next) {
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
       }).then(function (user) {
         user.profile[req.params.key] = req.body.value;
@@ -300,7 +355,7 @@ function () {
   }, {
     key: "getUsername",
     value: function getUsername(req, res, next) {
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
       }).select('username').then(function (user) {
         res.json(user.username);
@@ -311,7 +366,7 @@ function () {
   }, {
     key: "checkUsernameAvailability",
     value: function checkUsernameAvailability(req, res, next) {
-      this.models.User.countDocuments({
+      this.subModels.User.countDocuments({
         username: req.body.username
       }).then(function (count) {
         if (count !== 0) return res.status(406).json({
@@ -327,16 +382,16 @@ function () {
   }, {
     key: "setUsername",
     value: function setUsername(req, res, next) {
-      var _this3 = this;
+      var _this5 = this;
 
-      this.models.User.countDocuments({
+      this.subModels.User.countDocuments({
         username: req.body.username
       }).then(function (count) {
         if (count !== 0) return res.status(406).json({
           error: 'Username is unavailable'
         });
 
-        _this3.models.User.findOneAndUpdate({
+        _this5.subModels.User.findOneAndUpdate({
           id: req.user.id
         }, {
           username: req.body.username
@@ -358,7 +413,7 @@ function () {
           currentPassword = _req$body3.currentPassword,
           newPassword = _req$body3.newPassword,
           confirmPassword = _req$body3.confirmPassword;
-      this.models.User.findOne({
+      this.subModels.User.findOne({
         id: req.user.id
       }).then(function (user) {
         if (user.validPassword(currentPassword)) {
