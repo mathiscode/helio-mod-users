@@ -132,12 +132,17 @@ export default class {
           email: user.email,
           username: user.username,
           roles: user.roles
-        }, process.env.JWT_SECRET,
+        }, req.app.get('HELIO_JWT_SECRET'),
         {
-          expiresIn: process.env.JWT_TIMEOUT || '1h'
+          expiresIn: req.app.get('HELIO_JWT_TIMEOUT') || '1h'
         },
         (err, token) => {
-          if (err) return res.status(400).json({ error: 'An error occurred authenticating your account' })
+          if (err) {
+            console.log(err)
+            req.Log.error(err)
+            return res.status(400).json({ error: 'An error occurred authenticating your account' })
+          }
+
           const whitelist = new this.models.TokenWhitelist({ token })
           whitelist.save()
           res.set('X-AuthToken', token).json({ token })

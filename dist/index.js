@@ -195,12 +195,17 @@ function () {
           email: user.email,
           username: user.username,
           roles: user.roles
-        }, process.env.JWT_SECRET, {
-          expiresIn: process.env.JWT_TIMEOUT || '1h'
+        }, req.app.get('HELIO_JWT_SECRET'), {
+          expiresIn: req.app.get('HELIO_JWT_TIMEOUT') || '1h'
         }, function (err, token) {
-          if (err) return res.status(400).json({
-            error: 'An error occurred authenticating your account'
-          });
+          if (err) {
+            console.log(err);
+            req.Log.error(err);
+            return res.status(400).json({
+              error: 'An error occurred authenticating your account'
+            });
+          }
+
           var whitelist = new _this4.models.TokenWhitelist({
             token: token
           });
