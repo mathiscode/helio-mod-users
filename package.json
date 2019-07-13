@@ -46,5 +46,8 @@
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.5.11",
     "uuid": "^3.3.2"
+  },
+  "resolutions": {
+    "chokidar": "3"
   }
 }
